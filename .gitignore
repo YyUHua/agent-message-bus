@@ -1,0 +1,16 @@
+# Database files (runtime data, not source)
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# macOS
+.DS_Store

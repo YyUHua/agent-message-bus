@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent A办公室 · Agent Dashboard</title>
+<style>
+  :root {
+    --glass-bg: rgba(255,255,255,0.08);
+    --glass-border: rgba(255,255,255,0.12);
+    --online: #34d399;
+    --offline: #6b7280;
+    --active: #fbbf24;
+    --text: #e5e7eb;
+    --text-dim: #9ca3af;
+    --card: rgba(15,15,15,0.6);
+    --accent: #818cf8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: #0a0a0a;
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+  .container {
+    display: flex;
+    height: 100vh;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background: rgba(20,20,20,0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-right: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 12px;
+    gap: 8px;
+  }
+  .sidebar h2 {
+    font-size: 20px;
+    font-weight: 700;
+    padding: 0 8px 12px;
+    color: #fff;
+  }
+  .sidebar .stat-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .sidebar .stat-card .label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .sidebar .stat-card .value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .sidebar .stat-row {
+    display: flex;
+    gap: 8px;
+  }
+  .sidebar .stat-row .stat-card { flex: 1; }
+
+  /* MAIN */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 20px;
+    overflow-y: auto;
+  }
+  .main h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  /* AGENT GRID */
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .agent-card {
+    background: var(--card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 24px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .agent-card:hover {
+    border-color: rgba(255,255,255,0.25);
+    transform: translateY(-2px);
+  }
+  .agent-card .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+  }
+  .agent-card .status-dot.online { background: var(--online); box-shadow: 0 0 12px var(--online); }
+  .agent-card .status-dot.offline { background: var(--offline); }
+  .agent-card .status-dot.active { background: var(--active); box-shadow: 0 0 12px var(--active); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  
+  .agent-card .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .agent-card .avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .agent-card .info h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .agent-card .info .role {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .agent-card .last-seen {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .agent-card .task {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text-dim);
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+  }
+  .agent-card .task .none {
+    color: #6b7280;
+    font-style: italic;
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    width: 280px;
+    flex-shrink: 0;
+    background: rgba(20,20,20,0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-left: 1px solid var(--glass-border);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+  .right-panel h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .event-item {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .event-item .agent-tag {
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .event-item .time {
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  /* CHAT PANEL */
+  .chat-panel {
+    background: var(--card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+  .chat-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--glass-border);
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .chat-message {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .chat-message.user {
+    align-self: flex-end;
+    background: rgba(129,140,248,0.15);
+    border: 1px solid rgba(129,140,248,0.25);
+    color: #e5e7eb;
+  }
+  .chat-message.agent {
+    align-self: flex-start;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--glass-border);
+    color: #d1d5db;
+  }
+  .chat-message .sender {
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    opacity: 0.7;
+  }
+  .chat-input {
+    display: flex;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--glass-border);
+    flex-shrink: 0;
+  }
+  .chat-input input {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+  }
+  .chat-input input:focus { border-color: var(--accent); }
+  .chat-input input::placeholder { color: #6b7280; }
+  .chat-input button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .chat-input button:hover { opacity: 0.85; }
+  .chat-input button:disabled { opacity: 0.4; cursor: default; }
+  .event-item .summary {
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2>🏢 办公室</h2>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="label">待处理</div>
+        <div class="value" id="stat-queued">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">已完成</div>
+        <div class="value" id="stat-acked">-</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="label">在线 Agent</div>
+      <div class="value" id="stat-online">-</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="label">路由规则</div>
+        <div class="value" id="stat-routes">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">今日失败</div>
+        <div class="value" id="stat-failed">-</div>
+      </div>
+    </div>
+    <div style="margin-top:auto; font-size:11px; color:var(--text-dim); text-align:center; padding:8px;">
+      轮询中 · 1s
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <h1>Agent 工作台</h1>
+    <div class="agent-grid" id="agent-grid">
+    </div>
+
+    <!-- CHAT PANEL -->
+    <div class="chat-panel">
+      <div class="chat-header">💬 群聊面板</div>
+      <div class="chat-messages" id="chat-messages">
+        <div style="color:var(--text-dim);text-align:center;padding:20px;">发送消息触发 Agent 协作</div>
+      </div>
+      <div class="chat-input">
+        <input id="chat-input" type="text" placeholder="输入消息，按 Enter 发送..." onkeydown="if(event.key==='Enter')sendMessage()">
+        <button onclick="sendMessage()">发送</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <h3>📋 消息统计</h3>
+    <div class="event-item">
+      <span class="agent-tag">QUEUED</span>
+      <span class="summary" id="msg-queued">-</span>
+    </div>
+    <div class="event-item">
+      <span class="agent-tag">ACK_PENDING</span>
+      <span class="summary" id="msg-pending">-</span>
+    </div>
+    <div class="event-item">
+      <span class="agent-tag">ACKED</span>
+      <span class="summary" id="msg-acked">-</span>
+    </div>
+    <div class="event-item">
+      <span class="agent-tag">FAILED</span>
+      <span class="summary" id="msg-failed">-</span>
+    </div>
+    <h3 style="margin-top:12px;">📡 实时动态</h3>
+    <div id="event-stream" style="display:flex;flex-direction:column;gap:6px;">
+      <div class="event-item" style="color:var(--text-dim);">等待事件...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BUS = 'http://localhost:8648';
+const DISPATCHER = 'http://localhost:8655';
+let lastEventId = 0;
+
+const AGENTS = [
+  { id: 'agent_a', busId: 'agent_a', name: 'Agent A', role: 'Hermes · 终端/文件/浏览器', avatar: '🌙', color: '#818cf8' },
+  { id: 'agent_e', busId: 'agent_b', name: 'Agent E', role: 'OpenClaw · 大管家/路由', avatar: '🌿', color: '#34d399' },
+  { id: 'agent_c', busId: 'agent_c', name: 'Agent C', role: 'Claude Opus · 创作/聊天', avatar: '🌸', color: '#f472b6' },
+  { id: 'agent_d', busId: 'agent_d', name: 'Agent D', role: 'DeepSeek · 数据处理', avatar: '💜', color: '#a78bfa' },
+];
+
+function createAgentCards() {
+  const grid = document.getElementById('agent-grid');
+  AGENTS.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'agent-card';
+    card.id = `agent-${a.id}`;
+    card.innerHTML = `
+      <div class="header">
+        <div class="avatar" style="background:${a.color}22; color:${a.color}">${a.avatar}</div>
+        <div class="info">
+          <h3><span class="status-dot offline" id="dot-${a.id}"></span>${a.name}</h3>
+          <div class="role">${a.role}</div>
+          <div class="last-seen" id="seen-${a.id}">-</div>
+        </div>
+      </div>
+      <div class="task" id="task-${a.id}"><span class="none">空闲中</span></div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function timeAgo(ts) {
+  if (!ts) return '-';
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return '刚刚';
+  if (s < 60) return `${s}秒前`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}小时前`;
+  return `${Math.floor(h/24)}天前`;
+}
+
+function formatNum(n) {
+  if (n == null) return '-';
+  if (n >= 10000) return (n/10000).toFixed(1) + 'w';
+  return n.toLocaleString();
+}
+
+async function poll() {
+  try {
+    const res = await fetch(`${BUS}/status`);
+    const data = await res.json();
+    if (!data.ok) return;
+
+    // Update sidebar stats
+    document.getElementById('stat-queued').textContent = formatNum(data.messages?.QUEUED);
+    document.getElementById('stat-acked').textContent = formatNum(data.messages?.ACKED);
+    document.getElementById('stat-failed').textContent = formatNum(data.messages?.FAILED);
+
+    // Update right panel message stats
+    document.getElementById('msg-queued').textContent = `待投递: ${formatNum(data.messages?.QUEUED)}`;
+    document.getElementById('msg-pending').textContent = `等待确认: ${formatNum(data.messages?.ACK_PENDING)}`;
+    document.getElementById('msg-acked').textContent = `已完成: ${formatNum(data.messages?.ACKED)}`;
+    document.getElementById('msg-failed').textContent = `失败: ${formatNum(data.messages?.FAILED)}`;
+
+    // Count online agents (heartbeat within 2 minutes = alive)
+    const agents = data.agents || [];
+    const now = Date.now();
+    const alive = agents.filter(a => {
+      const alive = (a.status === 'online' || a.status === 'ok') && (now - a.last_heartbeat < 120_000);
+      return alive;
+    });
+    const onlineCount = agents.filter(a => a.status === 'online' || a.status === 'ok').length;
+    const totalRegistered = agents.length || AGENTS.length;
+    document.getElementById('stat-online').textContent = `${alive.length}/${totalRegistered}`;
+
+    // Update each agent card
+    AGENTS.forEach(a => {
+      const agentData = agents.find(ag => ag.agent_id === a.busId);
+      const dot = document.getElementById(`dot-${a.id}`);
+      const seen = document.getElementById(`seen-${a.id}`);
+      
+      const aliveStatuses = ['online', 'ok', 'thinking', 'running', 'active'];
+      if (agentData && aliveStatuses.includes(agentData.status) && (now - agentData.last_heartbeat < 120_000)) {
+        dot.className = 'status-dot online';
+        seen.textContent = `心跳 ${timeAgo(agentData.last_heartbeat)}`;
+      } else {
+        dot.className = 'status-dot offline';
+        seen.textContent = agentData ? `离线 ${timeAgo(agentData.last_heartbeat)}` : '未注册';
+      }
+    });
+
+    // Poll events with cursor-based incremental fetch
+    try {
+      const evRes = await fetch(`${BUS}/events?after_id=${lastEventId}`);
+      if (evRes.ok) {
+        const evData = await evRes.json();
+        const events = evData.events || [];
+        if (events.length > 0) {
+          const last = events[events.length - 1];
+          if (last.event_id > lastEventId) lastEventId = last.event_id;
+          renderEvents(events);
+        }
+      }
+    } catch(e) {
+      // /events not ready yet - that's OK
+    }
+
+    // Poll dispatcher health
+    try {
+      const dRes = await fetch(`${DISPATCHER}/health`);
+      if (dRes.ok) {
+        const routesRes = await fetch(`${DISPATCHER}/routes`);
+        if (routesRes.ok) {
+          const routesData = await routesRes.json();
+          const routeCount = routesData.routes?.length || 0;
+          const el = document.getElementById('stat-routes');
+          if (el) el.textContent = routeCount;
+        }
+      }
+    } catch(e) {}
+
+  } catch(e) {
+    console.warn('Bus poll failed:', e.message);
+  }
+}
+
+function renderEvents(events) {
+  const container = document.getElementById('event-stream');
+  if (!events || !events.length) {
+    container.innerHTML = '<div class="event-item" style="color:var(--text-dim);">暂无事件</div>';
+    return;
+  }
+  const recent = events.slice(-8).reverse();
+  container.innerHTML = recent.map(e => `
+    <div class="event-item">
+      <span class="agent-tag">${e.agent || 'system'}</span>
+      <span class="summary">${e.summary || e.type || '-'}</span>
+      <span class="time">${new Date(e.ts).toLocaleTimeString()}</span>
+    </div>
+  `).join('');
+
+  // Also push agent events to chat
+  events.forEach(e => {
+    if (e.summary && e.agent && e.summary !== '测试总线端点' && e.summary !== '面板对齐验证') {
+      const msgKey = `${e.agent}-${e.ts}-${e.type}`;
+      if (!renderedChatEvents.has(msgKey)) {
+        renderedChatEvents.add(msgKey);
+        addChatBubble(e.agent, e.summary);
+      }
+    }
+  });
+}
+
+const renderedChatEvents = new Set();
+
+function addChatBubble(sender, text) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-message agent';
+  div.innerHTML = `<div class="sender">${sender}</div><div>${text}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = input.nextElementSibling;
+  btn.disabled = true;
+  input.disabled = true;
+
+  // Show user message
+  const container = document.getElementById('chat-messages');
+  const userDiv = document.createElement('div');
+  userDiv.className = 'chat-message user';
+  userDiv.innerHTML = `<div class="sender">我</div><div>${text}</div>`;
+  container.appendChild(userDiv);
+  container.scrollTop = container.scrollHeight;
+  input.value = '';
+
+  try {
+    const res = await fetch(`${DISPATCHER}/dispatch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text, from_user: 'user' })
+    });
+    const data = await res.json();
+    if (data.dispatched) {
+      const agents = data.agents.map(a => a.agent).join(', ');
+      addChatBubble('system', `已派发至: ${agents}`);
+    } else {
+      addChatBubble('system', data.hint || '派发失败');
+    }
+  } catch(e) {
+    addChatBubble('system', `派发错误: ${e.message}`);
+  }
+
+  btn.disabled = false;
+  input.disabled = false;
+  input.focus();
+}
+
+createAgentCards();
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

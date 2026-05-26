@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Agent Bus — Chat</title>
+<style>
+:root {
+  --bg: #f2f2f7;
+  --bg-header: rgba(255,255,255,0.85);
+  --bg-input: #fff;
+  --bg-bubble-self: #007aff;
+  --bg-bubble-other: #e9e9eb;
+  --text: #1c1c1e;
+  --text-secondary: #8e8e93;
+  --text-time: #8e8e93;
+  --border: #c6c6c8;
+  --shadow: rgba(0,0,0,0.08);
+  --nav-bg: #f9f9f9;
+  --sidebar-bg: #f0f0f5;
+  --sidebar-text: #1c1c1e;
+  --card-bg: #fff;
+  --card-border: #e0e0e5;
+  --bar-bg: rgba(255,255,255,0.85);
+}
+.dark {
+  --bg: #000;
+  --bg-header: rgba(28,28,30,0.92);
+  --bg-input: #1c1c1e;
+  --bg-bubble-self: #0a84ff;
+  --bg-bubble-other: #1c1c1e;
+  --text: #fff;
+  --text-secondary: #8e8e93;
+  --text-time: #636366;
+  --border: #38383a;
+  --shadow: rgba(0,0,0,0.3);
+  --nav-bg: #1c1c1e;
+  --sidebar-bg: #161618;
+  --sidebar-text: #e5e5ea;
+  --card-bg: #1c1c1e;
+  --card-border: #38383a;
+  --bar-bg: rgba(28,28,30,0.92);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"SF Pro","PingFang SC",sans-serif;background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;height:100vh;max-width:720px;margin:0 auto}
+/* Header */
+.header{display:flex;align-items:center;justify-content:center;padding:12px 16px;background:var(--bg-header);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid var(--border);position:relative;flex-shrink:0}
+.header h1{font-size:17px;font-weight:600;letter-spacing:0.3px}
+.theme-btn{position:absolute;right:16px;background:none;border:none;font-size:20px;cursor:pointer;padding:4px;color:var(--text-secondary)}
+/* Contacts bar */
+.contacts{display:flex;gap:8px;padding:8px 16px;background:var(--bg-header);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.contact{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-input);cursor:pointer;transition:all 0.15s;flex-shrink:0;min-width:56px}
+.contact:hover{opacity:0.8}
+.contact.active{border-color:var(--bg-bubble-self);background:rgba(0,122,255,0.1)}
+.contact .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:600}
+.contact .name{font-size:11px;color:var(--text-secondary);white-space:nowrap}
+.contact .dot{width:6px;height:6px;border-radius:50%;margin-top:1px}
+.contact .dot.online{background:#30d158}
+.contact .dot.offline{background:#8e8e93}
+/* Messages */
+.messages{flex:1;overflow-y:auto;padding:8px 16px 4px;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch}
+.msg{display:flex;align-items:flex-end;gap:8px;margin-bottom:6px;animation:fadeIn 0.2s ease}
+.msg.incoming{flex-direction:row}
+.msg.outgoing{flex-direction:row-reverse}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:600;flex-shrink:0}
+.msg-content{max-width:78%;min-width:0}
+.msg-sender{font-size:12px;color:var(--text-secondary);margin-bottom:2px;padding-left:4px}
+.msg.outgoing .msg-sender{text-align:right}
+.msg-bubble{padding:9px 14px;border-radius:18px;font-size:16px;line-height:1.5;word-break:break-word;white-space:pre-wrap}
+.msg.incoming .msg-bubble{background:var(--bg-bubble-other);border-bottom-left-radius:4px;color:var(--text)}
+.msg.outgoing .msg-bubble{background:var(--bg-bubble-self);color:#fff;border-bottom-right-radius:4px}
+.msg-time{font-size:11px;color:var(--text-time);margin-top:2px;padding:0 4px}
+.msg.outgoing .msg-time{text-align:right}
+.msg .typing .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--text-secondary);animation:bounce 1.4s infinite}
+.msg .typing .dot:nth-child(2){animation-delay:0.2s}
+.msg .typing .dot:nth-child(3){animation-delay:0.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+/* Input */
+.input-area{display:flex;align-items:flex-end;gap:8px;padding:8px 12px 12px;background:var(--bg-header);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);flex-shrink:0}
+.input-area textarea{flex:1;border:none;background:var(--bg-input);border-radius:20px;padding:10px 16px;font-size:16px;font-family:inherit;resize:none;outline:none;min-height:40px;max-height:120px;line-height:1.4;color:var(--text)}
+.input-area textarea::placeholder{color:var(--text-secondary)}
+.input-area .send-btn{width:40px;height:40px;border-radius:50%;border:none;background:var(--bg-bubble-self);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s}
+.input-area .send-btn:disabled{opacity:0.4}
+.input-area .send-btn:hover{opacity:0.85}
+/* Date divider */
+.date-divider{text-align:center;font-size:12px;color:var(--text-secondary);padding:12px 0 8px;font-weight:500}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+/* Sidebar + Bottom bar */
+.app-wrapper{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;flex-shrink:0;background:var(--sidebar-bg);border-right:0.5px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.sidebar-title{font-size:11px;font-weight:600;color:var(--text-secondary);letter-spacing:0.5px;padding:4px 0}
+.sidebar-card{background:var(--card-bg);border-radius:10px;padding:10px 12px;border:0.5px solid var(--card-border)}
+.sidebar-card .label{font-size:11px;color:var(--text-secondary);margin-bottom:4px}
+.sidebar-card .value{font-size:20px;font-weight:700;color:var(--sidebar-text);line-height:1.2}
+.sidebar-card .value .unit{font-size:12px;font-weight:400;color:var(--text-secondary);margin-left:2px}
+.progress-bar{height:4px;border-radius:2px;background:var(--card-border);margin-top:6px;overflow:hidden}
+.progress-bar .fill{height:100%;border-radius:2px;transition:width 1s ease}
+.chat-col{flex:1;display:flex;flex-direction:column;min-width:0}
+.chat-col .app{height:100%}
+.bottom-bar{flex-shrink:0;background:var(--bar-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);padding:5px 16px;display:flex;align-items:center;gap:14px;font-size:12px;color:var(--text-secondary)}
+.bottom-bar .item{display:flex;align-items:center;gap:4px}
+.bottom-bar .item .num{font-weight:600;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">系统状态</div>
+    <div class="sidebar-card">
+      <div class="label">CPU</div>
+      <div class="value"><span id="cpuVal">-</span><span class="unit">%</span></div>
+      <div class="progress-bar"><div class="fill" id="cpuBar" style="width:0%"></div></div>
+    </div>
+    <div class="sidebar-card">
+      <div class="label">内存</div>
+      <div class="value"><span id="memVal">-</span><span class="unit">GB</span></div>
+      <div class="progress-bar"><div class="fill" id="memBar" style="width:0%"></div></div>
+    </div>
+    <div class="sidebar-card">
+      <div class="label">消息</div>
+      <div class="value"><span id="msgVal">-</span><span class="unit">条</span></div>
+    </div>
+  </aside>
+  <div class="chat-col">
+    <div class="app">
+  <header class="header">
+    <h1>Agent Bus</h1>
+    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+  </header>
+  <div class="contacts" id="contacts">
+    <div class="contact active" data-agent="user" onclick="selectTo(this)">
+      <div class="avatar" style="background:#07c160">🐑</div>
+      <div class="name">User</div>
+      <div class="dot online"></div>
+    </div>
+    <div class="contact" data-agent="agent_a" onclick="selectTo(this)">
+      <div class="avatar" style="background:#667eea">🌙</div>
+      <div class="name">Agent A</div>
+      <div class="dot offline" id="dot-agent_a"></div>
+    </div>
+    <div class="contact" data-agent="agent_b" onclick="selectTo(this)">
+      <div class="avatar" style="background:#f5576c">🌸</div>
+      <div class="name">Agent B</div>
+      <div class="dot offline" id="dot-agent_b"></div>
+    </div>
+    <div class="contact" data-agent="agent_c" onclick="selectTo(this)">
+      <div class="avatar" style="background:#f39c12">🔥</div>
+      <div class="name">Agent C</div>
+      <div class="dot offline" id="dot-agent_c"></div>
+    </div>
+    <div class="contact" data-agent="all" onclick="selectTo(this)">
+      <div class="avatar" style="background:#8e8e93">📢</div>
+      <div class="name">所有人</div>
+      <div class="dot" style="visibility:hidden"></div>
+    </div>
+  </div>
+  <div class="messages" id="messages"></div>
+  <div class="input-area">
+    <textarea id="input" rows="1" placeholder="Send a message..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="send()">↑</button>
+  </div>
+  <div class="bottom-bar">
+    <div class="item">Tokens: <span class="num" id="tokenTotal">-</span></div>
+    <div class="item">输入: <span class="num" id="tokenInput">-</span></div>
+    <div class="item">输出: <span class="num" id="tokenOutput">-</span></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ── State ──
+const state = {
+  dark: localStorage.getItem('theme') === 'dark',
+  toAgent: 'agent_a',
+  knownIds: new Set(),
+  sending: false,
+  agents: {},
+};
+const PEOPLE = {
+  user:{name:'User',color:'#07c160',emoji:'🐑'},
+  agent_a:{name:'Agent A',color:'#667eea',emoji:'🌙'},
+  agent_b:{name:'Agent B',color:'#f5576c',emoji:'🌸'},
+  agent_c:{name:'Agent C',color:'#f39c12',emoji:'🔥'},
+};
+
+// ── Init ──
+if (state.dark) document.documentElement.classList.add('dark');
+document.getElementById('themeBtn').textContent = state.dark ? '☀️' : '🌙';
+loadMessages().then(() => {
+  setTimeout(loadMessages, 500);
+  setTimeout(loadMessages, 1500);
+});
+setInterval(loadMessages, 1000);  // 1s 轮询，降低延迟
+setInterval(checkAgents, 5000);
+setTimeout(checkAgents, 500);
+setTimeout(loadStats, 100);
+setInterval(loadStats, 5000);
+document.getElementById('input').focus();
+
+// ── Theme ──
+function toggleTheme() {
+  state.dark = !state.dark;
+  document.documentElement.classList.toggle('dark', state.dark);
+  document.getElementById('themeBtn').textContent = state.dark ? '☀️' : '🌙';
+  localStorage.setItem('theme', state.dark ? 'dark' : 'light');
+}
+
+// ── Contact selection ──
+function selectTo(el) {
+  document.querySelectorAll('.contact').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  state.toAgent = el.dataset.agent;
+  const names = {user:'Self',agent_a:'Agent A',agent_b:'Agent B',agent_c:'Agent C',all:'All'};
+  document.getElementById('input').placeholder = `To ${names[state.toAgent]||'?'}...`;
+  document.getElementById('input').focus();
+}
+
+// ── Messages ──
+async function loadMessages() {
+  try {
+    const resp = await fetch(`/api/messages?limit=100&_=${Date.now()}`, {cache:'no-store'});
+    const data = await resp.json();
+    console.log("poll", data.messages?.length||0, "msgs, known", state.knownIds.size);
+      var __yy=data.messages.filter(function(m){return m.from_agent==="user";});console.log("user:", __yy.length, __yy.map(function(m){return m.content.slice(0,20)}));
+    if (!data.messages) return;
+    const container = document.getElementById('messages');
+    let needsScroll = false;
+
+    data.messages.forEach(m => {
+      if (state.knownIds.has(m.message_id)) {
+        // 已知消息，但可能有了新的 reply（ACK 后续追加的）
+        if (m.reply && m.from_agent === 'user') {
+          if (!state._shownReplies) state._shownReplies = new Set();
+          if (!state._shownReplies.has(m.message_id)) {
+            state._shownReplies.add(m.message_id);
+            const t = m.created_at ? new Date(m.created_at*1000) : new Date();
+            const ts = t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            const replier = PEOPLE[m.to_agent] || {name:m.to_agent,color:'#8e8e93',emoji:'?'};
+            const row = document.createElement('div');
+            row.className = 'msg incoming';
+            if (state._shownReplies.size > 300) {
+              state._shownReplies = new Set([...state._shownReplies].slice(-200));
+            }
+            row.innerHTML = `
+              <div class="msg-avatar" style="background:${replier.color}">${replier.emoji}</div>
+              <div class="msg-content">
+                <div class="msg-sender">${replier.name}</div>
+                <div class="msg-bubble">${esc(m.reply)}</div>
+                <div class="msg-time">${ts}</div>
+              </div>`;
+            container.appendChild(row);
+            needsScroll = true;
+          }
+        }
+        return;
+      }
+      state.knownIds.add(m.message_id);
+      if (state.knownIds.size > 500) {
+        const arr = [...state.knownIds].slice(-300);
+        state.knownIds = new Set(arr);
+      }
+
+      const from = m.from_agent || '?';
+      const person = PEOPLE[from] || {name:from,color:'#8e8e93',emoji:'?'};
+      const time = m.created_at ? new Date(m.created_at*1000) : new Date();
+      const timeStr = time.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+      // 如果消息有 reply，说明是对方通过 ACK 回复的，拆成两条显示
+      const items = [];
+      if (from === 'user') {
+        // 批量去重：同一次 poll 中内容相同的 user 只显示一条（广播场景）
+        // 同时也支持刷新页面后的去重
+        if (!state._batchSeen) state._batchSeen = new Set();
+        const isDup = state._batchSeen.has(m.content);
+        if (!isDup) state._batchSeen.add(m.content);
+
+        if (!isDup) {
+          // 移除同内容的乐观消息（如果存在）
+          const opts = container.querySelectorAll('.msg.outgoing[data-optimistic="1"]');
+          for (const el of opts) {
+            const b = el.querySelector('.msg-bubble');
+            if (b && b.textContent === m.content) { el.remove(); break; }
+          }
+          items.push({from:'user', content:m.content || '', time:timeStr});
+        }
+        if (m.reply) {
+          const replier = PEOPLE[m.to_agent] || {name:m.to_agent,color:'#8e8e93',emoji:'?'};
+          items.push({from:m.to_agent, content:m.reply, time:timeStr, person:replier});
+        }
+      } else if (from === 'agent_a' || from === 'agent_b' || from === 'agent_c') {
+        // 对方主动发的消息
+        items.push({from:from, content:m.content || m.reply || '', time:timeStr, person:person});
+      } else if (from === 'system') {
+        return;
+      }
+
+      items.forEach(item => {
+        const isOutgoing = item.from === 'user';
+        const p = item.person || PEOPLE[item.from] || {name:item.from,color:'#8e8e93',emoji:'?'};
+        const row = document.createElement('div');
+        row.className = `msg ${isOutgoing ? 'outgoing' : 'incoming'}`;
+        row.dataset.msgId = m.message_id;
+        row.innerHTML = isOutgoing ? `
+          <div class="msg-content">
+            <div class="msg-sender">我</div>
+            <div class="msg-bubble">${esc(item.content)}</div>
+            <div class="msg-time">${item.time}</div>
+          </div>
+        ` : `
+          <div class="msg-avatar" style="background:${p.color}">${p.emoji}</div>
+          <div class="msg-content">
+            <div class="msg-sender">${p.name}</div>
+            <div class="msg-bubble">${esc(item.content)}</div>
+            <div class="msg-time">${item.time}</div>
+          </div>`;
+        container.appendChild(row);
+        needsScroll = true;
+      });
+    });
+
+    state._batchSeen = new Set();  // 清广播去重缓存
+    if (needsScroll) scrollToBottom();
+  } catch(e) {}
+}
+
+// ── Send ──
+async function send() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if (!text || state.sending) return;
+  state.sending = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  // 乐观消息 — 立即显示，后续 poll 会去重
+  const container = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.className = 'msg outgoing';
+  row.dataset.optimistic = '1';
+  const timeStr = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const isBroadcast = state.toAgent === 'all';
+  row.innerHTML = `
+    <div class="msg-content">
+      <div class="msg-sender">我${isBroadcast ? ' 📢' : ''}</div>
+      <div class="msg-bubble">${esc(text)}</div>
+      <div class="msg-time">${timeStr}</div>
+    </div>`;
+  container.appendChild(row);
+  scrollToBottom();
+  input.value = '';
+  autoResize(input);
+
+  try {
+    const resp = await fetch('/api/send', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({to:state.toAgent,content:text})
+    });
+    const data = await resp.json();
+    if (data.error) {
+      row.querySelector('.msg-bubble').textContent += '\n⚠️ ' + data.error;
+    }
+  } catch(e) {
+    row.querySelector('.msg-bubble').textContent += '\n⚠️ 发送失败';
+  }
+  state.sending = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+
+// ── Agent status ──
+async function checkAgents() {
+  try {
+    const resp = await fetch('/api/agents');
+    const data = await resp.json();
+    if (!data.agents) return;
+    for (const [id, info] of Object.entries(data.agents)) {
+      const dot = document.getElementById('dot-'+id);
+      if (dot) {
+        dot.className = 'dot ' + (info.native_status === 'ok' || info.status === 'online' ? 'online' : 'offline');
+      }
+    }
+  } catch(e) {}
+}
+
+
+// -- Stats --
+async function loadStats() {
+  try {
+    const resp = await fetch('/api/stats', {cache:'no-store'});
+    const d = await resp.json();
+    if (d.cpu != null) {
+      document.getElementById('cpuVal').textContent = d.cpu;
+      document.getElementById('cpuBar').style.width = Math.min(d.cpu, 100) + '%';
+      const bar = document.getElementById('cpuBar');
+      bar.style.background = d.cpu > 80 ? '#ff453a' : d.cpu > 50 ? '#ff9f0a' : '#30d158';
+    }
+    if (d.memory) {
+      const gb = (d.memory.used / 1073741824).toFixed(1);
+      document.getElementById('memVal').textContent = gb;
+      document.getElementById('memBar').style.width = Math.min(d.memory.percent, 100) + '%';
+      const bar = document.getElementById('memBar');
+      bar.style.background = d.memory.percent > 80 ? '#ff453a' : d.memory.percent > 50 ? '#ff9f0a' : '#30d158';
+    }
+    if (d.messages != null) {
+      document.getElementById('msgVal').textContent = d.messages;
+    }
+    if (d.tokens) {
+      document.getElementById('tokenTotal').textContent = (d.tokens.total || 0).toLocaleString();
+      document.getElementById('tokenInput').textContent = (d.tokens.input || 0).toLocaleString();
+      document.getElementById('tokenOutput').textContent = (d.tokens.output || 0).toLocaleString();
+    }
+  } catch(e) {}
+}
+
+// ── Helpers ──
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    const el = document.getElementById('messages');
+    el.scrollTop = el.scrollHeight;
+  });
+}
+function autoResize(t) {
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 120) + 'px';
+}
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+</script>
+</body>
+</html>

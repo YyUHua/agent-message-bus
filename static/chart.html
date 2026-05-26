@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>安和月 — 行情</title>
+<script src="/static/lc.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#fff;--bg2:#f5f5f5;--text:#1c1c1e;--text2:#8e8e93;--border:#d1d1d6;--card:#fff;--card-shadow:rgba(0,0,0,0.06);--up:#ef5350;--down:#26a69a}
+.dark{--bg:#1c1c1e;--bg2:#2c2c2e;--text:#f5f5f5;--text2:#8e8e93;--border:#38383a;--card:#2c2c2e;--card-shadow:rgba(0,0,0,0.3);--up:#ef5350;--down:#26a69a}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"SF Pro","PingFang SC",sans-serif;background:var(--bg);color:var(--text)}
+body{display:flex;flex-direction:column}
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.toolbar .title{font-size:15px;font-weight:600;margin-right:8px}
+.toolbar select,.toolbar button{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;outline:none}
+.toolbar select:hover,.toolbar button:hover{opacity:0.8}
+.toolbar .info{font-size:12px;color:var(--text2);margin-left:auto}
+.chart-wrap{flex:1;position:relative;display:flex;flex-direction:column}
+#priceChart,#macdChart{flex-shrink:0}
+#priceChart{height:60%}
+#macdChart{height:20%}
+.status-bar{display:flex;gap:12px;padding:6px 12px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;font-size:12px;color:var(--text2);flex-wrap:wrap}
+.status-bar .item{display:flex;align-items:center;gap:4px}
+.status-bar .tag{padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px}
+.tag.season{background:#FFD700;color:#000}
+.tag.mode.bull{background:#ef5350;color:#fff}
+.tag.mode.bear{background:#26a69a;color:#fff}
+.tag.dir{background:#2196F3;color:#fff}
+.tag.val{background:var(--border);color:var(--text)}
+.loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;color:var(--text2);z-index:10}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <span class="title">安和月</span>
+  <select id="symSel"><option value="btcusdt">BTC</option><option value="ethusdt">ETH</option><option value="solusdt">SOL</option></select>
+  <select id="tfSel"><option value="15m">15m</option><option value="30m">30m</option><option value="1h">1h</option><option value="4h" selected>4h</option></select>
+  <button onclick="toggleTheme()" id="themeBtn">🌙 深色</button>
+  <button onclick="refresh()">↻ 刷新</button>
+  <span class="info" id="statusText">就绪</span>
+</div>
+<div class="chart-wrap">
+  <div class="loading" id="loading">加载中...</div>
+  <div id="priceChart"></div>
+  <div id="macdChart"></div>
+</div>
+<div class="status-bar" id="statusBar">
+  <span class="item" id="seasonTag"></span>
+  <span class="item" id="modeTag"></span>
+  <span class="item" id="dirTag"></span>
+  <span class="item" id="difTag"></span>
+</div>
+
+<script>
+let dark=window.matchMedia('(prefers-color-scheme:dark)').matches
+let priceChart,macdChart,candleSeries,difSeries,volSeries
+let macdDifSeries,macdDeaSeries,macdBarSeries
+let refreshTimer=null
+
+function toggleTheme(){
+  dark=!dark; document.documentElement.classList.toggle('dark',dark)
+  document.getElementById('themeBtn').textContent=dark?'☀️ 浅色':'🌙 深色'
+  applyTheme(); refresh()
+}
+
+function applyTheme(){
+  const bg=dark?'#1c1c1e':'#fff'
+  const text=dark?'#d1d4dc':'#333'
+  const grid=dark?'#2c2c2e':'#f0f0f0'
+  const wick=dark?'#6b6b6b':'#aaa'
+  const opts={layout:{background:{color:bg},textColor:text},grid:{vertLines:{color:grid},horzLines:{color:grid}}}
+  if(priceChart)priceChart.applyOptions(opts)
+  if(macdChart)macdChart.applyOptions(opts)
+}
+
+async function refresh(){
+  const sym=document.getElementById('symSel').value
+  const tf=document.getElementById('tfSel').value
+  document.getElementById('loading').style.display='block'
+  document.getElementById('statusText').textContent='加载中...'
+  try{
+    const resp=await fetch(`/api/chart/data?symbol=${sym}&tf=${tf}&limit=400`)
+    const data=await resp.json()
+    if(data.error){document.getElementById('statusText').textContent='❌ '+data.error;document.getElementById('loading').style.display='none';return}
+    renderChart(data)
+    document.getElementById('statusText').textContent='⏱ '+new Date().toLocaleTimeString()
+  }catch(e){document.getElementById('statusText').textContent='❌ '+e.message;console.error(e)}
+  document.getElementById('loading').style.display='none'
+}
+
+function renderChart(data){
+  const klines=data.klines
+  if(!klines||!klines.length)return
+
+  // ── 初始化 ──
+  if(!priceChart){
+    const bg=dark?'#1c1c1e':'#fff'
+    const text=dark?'#d1d4dc':'#333'
+    const grid=dark?'#2c2c2e':'#f0f0f0'
+    priceChart=LightweightCharts.createChart(document.getElementById('priceChart'),{
+      layout:{background:{color:bg},textColor:text},
+      grid:{vertLines:{color:grid},horzLines:{color:grid}},
+      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+      rightPriceScale:{borderColor:dark?'#38383a':'#d1d1d6'},
+      timeScale:{borderColor:dark?'#38383a':'#d1d1d6',timeVisible:true,secondsVisible:false,rightOffset:5},
+      handleScroll:true,handleScale:true,
+    })
+    priceChart.subscribeCrosshairMove(param=>{if(param.time)updateCrosshair(param)})
+    candleSeries=priceChart.addCandlestickSeries()
+    difSeries=priceChart.addLineSeries({color:'#2196F3',lineWidth:1,priceFormat:{type:'price'}})
+    volSeries=priceChart.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'volume'})
+    priceChart.priceScale('volume').applyOptions({scaleMargins:{top:0.85,bottom:0}})
+
+    const mbg=dark?'#1c1c1e':'#fff'
+    const mtxt=dark?'#d1d4dc':'#333'
+    const mgrid=dark?'#2c2c2e':'#f0f0f0'
+    macdChart=LightweightCharts.createChart(document.getElementById('macdChart'),{
+      layout:{background:{color:mbg},textColor:mtxt},
+      grid:{vertLines:{color:mgrid},horzLines:{color:mgrid}},
+      rightPriceScale:{borderColor:dark?'#38383a':'#d1d1d6'},
+      timeScale:{borderColor:dark?'#38383a':'#d1d1d6',timeVisible:true,secondsVisible:false,rightOffset:5},
+      handleScroll:true,handleScale:true,
+    })
+    macdDifSeries=macdChart.addLineSeries({color:'#2196F3',lineWidth:1})
+    macdDeaSeries=macdChart.addLineSeries({color:'#FF9800',lineWidth:1})
+    macdBarSeries=macdChart.addHistogramSeries({})
+    macdChart.subscribeCrosshairMove(param=>{if(param.time&&priceChart)priceChart.setCrosshairPosition(param.point,param.time)})
+
+    // 联动缩放
+    priceChart.timeScale().subscribeVisibleTimeRangeChange(()=>{
+      const r=priceChart.timeScale().getVisibleRange()
+      if(r&&macdChart)macdChart.timeScale().setVisibleRange(r)
+    })
+    macdChart.timeScale().subscribeVisibleTimeRangeChange(()=>{
+      const r=macdChart.timeScale().getVisibleRange()
+      if(r&&priceChart)priceChart.timeScale().setVisibleRange(r)
+    })
+  }
+
+  // ── 数据 ──
+  const cd=klines.map(k=>({time:k.t,open:k.o,high:k.h,low:k.l,close:k.c}))
+  const dif=klines.map((k,i)=>({time:k.t,value:data.dif[i]})).filter(d=>d.value!==null)
+  // Volume
+  const maxVol=Math.max(...klines.map(k=>k.v),1)
+  const vd=klines.map(k=>({time:k.t,value:k.v,color:k.c>k.o?'rgba(239,83,80,0.3)':'rgba(38,166,154,0.3)'}))
+
+  candleSeries.setData(cd)
+  difSeries.setData(dif)
+  volSeries.setData(vd)
+
+  // MACD sub
+  const mcd=data.dif.map((v,i)=>({time:klines[i].t,value:v})).filter(d=>d.value!==null)
+  const mda=data.dea.map((v,i)=>({time:klines[i].t,value:v})).filter(d=>d.value!==null)
+  const mb=data.bar.map((v,i)=>({time:klines[i].t,value:v,color:v>0?'rgba(239,83,80,0.4)':'rgba(38,166,154,0.4)'})).filter(d=>d.value!==null)
+  macdDifSeries.setData(mcd)
+  macdDeaSeries.setData(mda)
+  macdBarSeries.setData(mb)
+
+  // ── 摆动高低点 ──
+  const swl=data.swing_lows||[]
+  const swh=data.swing_highs||[]
+  const markers=[]
+  swl.forEach(i=>{
+    if(i<klines.length)markers.push({time:klines[i].t,position:'belowBar',color:'#FF9800',shape:'arrowUp',text:'底'})
+  })
+  swh.forEach(i=>{
+    if(i<klines.length)markers.push({time:klines[i].t,position:'aboveBar',color:'#9C27B0',shape:'arrowDown',text:'顶'})
+  })
+
+  // ── 信号 ──
+  const sigLong=data.signals_long||[]
+  const sigShort=data.signals_short||[]
+  sigLong.forEach(s=>{
+    if(s.idx<klines.length)markers.push({time:klines[s.idx].t,position:'belowBar',color:'#FF1744',shape:'arrowUp',text:s.entry?'二买⚡':'↗'})
+  })
+  sigShort.forEach(s=>{
+    if(s.idx<klines.length)markers.push({time:klines[s.idx].t,position:'aboveBar',color:'#00E676',shape:'arrowDown',text:s.entry?'二卖⚡':'↘'})
+  })
+  candleSeries.setMarkers(markers)
+
+  // ── 状态栏 ──
+  const tags={
+    season:`<span class="tag season">${data.season}</span>`,
+    mode:data.mode==='bull_extreme'?`<span class="tag mode bull">极端多头⚡</span>`:data.mode==='bear_extreme'?`<span class="tag mode bear">极端空头⚡</span>`:`<span class="tag" style="background:var(--border)">正常</span>`,
+    dir:`<span class="tag dir">${data.dir_filter}</span>`,
+    dif:`<span class="tag val">DIF ${data.dif_val}</span>`
+  }
+  document.getElementById('seasonTag').innerHTML='季节 '+tags.season
+  document.getElementById('modeTag').innerHTML='行情 '+tags.mode
+  document.getElementById('dirTag').innerHTML='方向 '+tags.dir
+  document.getElementById('difTag').innerHTML=tags.dif
+
+  // scroll to end with right margin
+  const lastTime = klines[klines.length-1].t;
+  priceChart.timeScale().scrollToRealTime();
+  macdChart.timeScale().scrollToRealTime();
+}
+
+function updateCrosshair(param){
+  if(!param.point||!macdChart)return
+  const priceChartEl=document.getElementById('priceChart')
+  const macdChartEl=document.getElementById('macdChart')
+  const priceRect=priceChartEl.getBoundingClientRect()
+  const macdRect=macdChartEl.getBoundingClientRect()
+  if(param.point.y<priceRect.height)return
+  macdChart.setCrosshairPosition({x:param.point.x,y:param.point.y-priceRect.height},param.time)
+}
+
+// ── 启动 ──
+document.getElementById('symSel').onchange=refresh
+document.getElementById('tfSel').onchange=refresh
+if(dark)document.documentElement.classList.add('dark')
+applyTheme()
+refresh()
+// 自动刷新 30s
+setInterval(()=>{
+  if(document.visibilityState==='visible')refresh()
+},30000)
+
+// 窗口自适应
+window.addEventListener('resize',()=>{
+  const h=window.innerHeight
+  const toolbar=document.querySelector('.toolbar')
+  const statusBar=document.querySelector('.status-bar')
+  const wrap=document.querySelector('.chart-wrap')
+  const avail=h-(toolbar?.offsetHeight||0)-(statusBar?.offsetHeight||0)
+  if(avail>200){
+    document.getElementById('priceChart').style.height=Math.floor(avail*0.75)+'px'
+    document.getElementById('macdChart').style.height=Math.floor(avail*0.25)+'px'
+    if(priceChart)priceChart.resize(document.getElementById('priceChart').offsetWidth||window.innerWidth,Math.floor(avail*0.75))
+    if(macdChart)macdChart.resize(document.getElementById('macdChart').offsetWidth||window.innerWidth,Math.floor(avail*0.25))
+  }
+})
+setTimeout(()=>window.dispatchEvent(new Event('resize')),100)
+</script>
+</body>
+</html>
