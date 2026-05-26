@@ -15,7 +15,7 @@ def test_record_heartbeat_upserts_agent_status(tmp_path):
         db_path,
         agent='agent_a',
         adapter_url='http://localhost:8641',
-        native_url='http://localhost:8642',
+        native_url='http://localhost:9090',
         status='online',
         native_status='online',
         metadata={'model': 'qwen'},
@@ -31,7 +31,7 @@ def test_record_heartbeat_upserts_agent_status(tmp_path):
         ).fetchone()
         assert row[0] == 'agent_a'
         assert row[1] == 'http://localhost:8641'
-        assert row[2] == 'http://localhost:8642'
+        assert row[2] == 'http://localhost:9090'
         assert row[3] == 'online'
         assert row[4] == 'online'
         assert row[5] is not None

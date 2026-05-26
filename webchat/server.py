@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""WebChat thin client - routes messages to Hermes gateway (8642) with fixed session_id.
+"""WebChat thin client — routes messages to the bus web UI with fixed session_id.
 All channels sharing session_id='user' see the same conversation."""
 
 import json, os, html
@@ -10,7 +10,7 @@ import httpx, uvicorn
 
 HOST = "127.0.0.1"
 PORT = 9110
-GATEWAY = "http://localhost:8642/v1/chat/completions"
+GATEWAY = os.environ.get("BUS_CHAT_URL", "http://localhost:8648/v1/chat/completions")
 SESSION_ID = "user"
 MODEL = "deepseek-v4-flash"
 
@@ -75,7 +75,7 @@ async def stream_chat(client, payload):
 async def health():
     try:
         async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.get("http://localhost:8642/health")
+            r = await c.get(f"{GATEWAY.rsplit('/', 2)[0]}/health")
             gw = "ok" if r.status_code == 200 else "fail"
     except:
         gw = "unreachable"
