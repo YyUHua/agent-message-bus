@@ -1,126 +1,81 @@
-# Agent Message Bus
 
-A lightweight SQLite-based message bus for multi-agent AI communication. Agents connect as workers, pull tasks from a central queue, and report status via atomic ack and event logging.
+Agent Message Bus / 消息总线
 
-## Architecture
+一个轻量的多 Agent 消息总线。SQLite 做存储，HTTP 协议通信，Agent 自己拉任务、自己上报状态。没有 Redis，没有 Kafka，没有外部依赖。跑起来就三行命令。
 
-```
-Message In -> Dispatcher -> Bus (SQLite) -> Agent Workers -> Response Out
-                  |              |                |
-            POST /dispatch   POST /send       poll /poll
-            (port 8655)     (port 8648)      claim /ack_pending
-                                               ack /ack
-```
+可以用来让多个 AI Agent 协同工作：一个 Agent 发任务，其他 Agent 轮询领取，处理完了 ack 回去。状态变化写进事件日志，面板实时能看到谁在线、谁在忙、消息卡在哪个队列。
 
-## Features
+A lightweight message bus for multi-agent systems. SQLite-backed, HTTP-native. Agents poll for tasks, claim them atomically, and report status back. Zero external dependencies — Python stdlib and a dream.
 
-- Atomic task claiming (first agent wins, others get 409)
-- Full task state machine: QUEUED -> ACK_PENDING -> RUNNING -> COMPLETED/FAILED
-- Append-only event log with cursor-based incremental reads
-- Heartbeat monitoring with timeout detection
-- Dead letter queue for unprocessable messages
-- Regex-based message routing in dispatcher
-- Web dashboard for real-time monitoring (WIP — functional but not yet polished)
-- Built-in group chat UI
+---
 
-> **Note**: The dashboard is functional but still being refined. Online status detection and event stream display may have edge cases.
+怎么跑起来 / Getting Started
 
-## Quick Start
+先启动总线：
 
-```bash
-# 1. Start the bus
-python3 anyue_bus_http.py
+    python3 anyue_bus_http.py
 
-# 2. Start the dispatcher
-python3 dispatcher.py
+然后启动调度器（如果不需要路由可以直接跳过，直接往总线 POST 就行）：
 
-# 3. Start a worker (example)
-python3 anyue_bus_worker.py --agent agent_a --bus http://127.0.0.1:8648
+    python3 dispatcher.py
 
-# 4. Open the dashboard
-python3 -m http.server 8080
-# Visit http://localhost:8080/static/index.html
-```
+启动一个 Worker：
 
-## API Endpoints
+    python3 anyue_bus_worker.py --agent worker_1 --bus http://127.0.0.1:8648 --auto-reply
 
-### Bus (port 8648)
+想看面板的话：
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| /health | GET | Health check |
-| /status | GET | Agent heartbeats + queue stats |
-| /send | POST | Submit a task |
-| /poll?agent=X | GET | Pull QUEUED tasks for agent X |
-| /ack_pending | POST | Claim a task (atomic) |
-| /ack | POST | Complete a task with response |
-| /events?after_id=N | GET | Incremental event stream |
-| /heartbeat | POST | Agent heartbeat ping |
+    python3 -m http.server 8080
+    浏览器打开 http://localhost:8080/static/dashboard.html
 
-### Dispatcher (port 8655)
+API 端点
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| /health | GET | Health check |
-| /routes | GET | List routing rules |
-| /dispatch | POST | Route message to agents |
+总线在 8648 端口：
 
-## Task States
+/health — 健康检查
+/status — 所有 Agent 的心跳和队列统计
+/send — 投一个任务进去
+/poll?agent=X — Agent X 拉自己队列里的任务
+/ack_pending — 认领任务（原子操作，多人抢只会有一个成功）
+/ack — 完成任务，带上回复
+/events?after_id=N — 增量拉事件流
+/heartbeat — Agent 发心跳
 
-```
-QUEUED -> ACK_PENDING -> RUNNING -> COMPLETED
-                                     FAILED
-                                     TIMEOUT
-                                     CANCELLED
-```
+调度器在 8655 端口：
 
-## Configuration
+/health
+/routes — 查看当前路由规则
+/dispatch — 发消息进来，调度器按正则规则路由到对应 Agent
 
-Workers accept command-line arguments:
+任务状态
 
-```bash
-python3 anyue_bus_worker.py \
-  --agent my_agent \
-  --bus http://127.0.0.1:8648 \
-  --openai-base-url https://api.openai.com/v1 \
-  --openai-api-key sk-xxx \
-  --openai-model gpt-4 \
-  --auto-reply
-```
+QUEUED（排队）→ ACK_PENDING（有人认领了）→ RUNNING（正在处理）→ COMPLETED / FAILED / TIMEOUT / CANCELLED
 
-Set `BUS_DB_PATH` environment variable to override the default database location.
+认领是原子的。两个 Agent 同时抢同一个任务，只有一个能拿到，另一个会收到 409。
 
-## Files
+Task lifecycle: QUEUED → ACK_PENDING → RUNNING → COMPLETED (or FAILED, TIMEOUT, CANCELLED). Claiming is atomic — first agent wins, others get a 409 conflict.
 
-| File | Purpose |
-|------|---------|
-| `anyue_bus_core.py` | Core bus logic (SQLite, queue, state machine) |
-| `anyue_bus_http.py` | HTTP API server for the bus |
-| `anyue_bus_adapter.py` | Adapter base class for workers |
-| `anyue_bus_worker.py` | Worker with OpenAI-native LLM integration |
-| `anyue_bus_dashboard.py` | Dashboard API endpoints |
-| `anyue_bus_shadow.py` | Shadow mode for testing |
-| `dispatcher.py` | Message router with regex rules |
-| `bus_web_ui.py` | FastAPI-based group chat UI |
-| `message_deduplicator.py` | Idempotency key support |
-| `init_schema.sql` | Database schema |
+文件说明 / Files
 
-## Testing
+anyue_bus_core.py — 核心逻辑，SQLite、队列、状态机
+anyue_bus_http.py — HTTP 服务，把核心逻辑暴露成 REST API
+anyue_bus_adapter.py — Worker 基类，封装了 poll / claim / heartbeat
+anyue_bus_worker.py — 带 LLM 集成的 Worker，支持 OpenAI 兼容 API，自动调用模型生成回复
+anyue_bus_dashboard.py — 面板需要的 API 端点
+anyue_bus_shadow.py — 影子模式，测试用
+dispatcher.py — 消息路由器，正则匹配规则分发
+bus_web_ui.py — FastAPI 写的群聊界面
+message_deduplicator.py — 幂等去重
+static/dashboard.html — 运维面板，实时看 Agent 状态和事件流
+webchat/server.py — Web 聊天服务
 
-```bash
-# Install test dependencies
-pip install pytest
+测试 / Testing
 
-# Run all tests
-python -m pytest tests/ -v
-```
+    pip install pytest
+    python -m pytest tests/ -v
 
-**Note**: adapter and worker tests are integration tests that require a running bus instance. The core bus, schema, send, and polling tests are pure unit tests that run without a server. To run only unit tests:
+适配器和 Worker 的测试需要总线在跑。核心逻辑、Schema、send、poll 的测试是纯单元测试，不需要启动服务：
 
-```bash
-python -m pytest tests/ -v -k "not test_adapters and not test_worker"
-```
+    python -m pytest tests/ -v -k "not test_adapters and not test_worker"
 
-## License
-
-MIT
+License: MIT
