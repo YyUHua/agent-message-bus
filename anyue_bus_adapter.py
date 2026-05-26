@@ -1,110 +1,75 @@
-import sqlite3
-import os
+"""AnyueBusAdapter — HTTP client wrapper for the Agent Message Bus API."""
+
 import json
-import logging
 import time
+import urllib.request
+import urllib.error
 from datetime import datetime
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# Database path
-DB_PATH = os.environ.get("BUS_DB_PATH", os.path.join(os.path.dirname(__file__), "anyue_bus.db"))
+class AnyueBusAdapter:
+    """Client adapter for the Agent Message Bus HTTP API."""
 
-def init_db():
-    """Initialize the database with required tables"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # Create messages table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source TEXT NOT NULL,
-            message_id TEXT,
-            content TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(message_id)
-        )
-    ''')
-    
-    # Create processed_messages table for deduplication
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS processed_messages (
-            message_id TEXT PRIMARY KEY
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
+    def __init__(self, agent, base_url="http://127.0.0.1:8648"):
+        self.agent = agent
+        self.base_url = base_url.rstrip("/")
 
-def is_message_processed(message_id):
-    """Check if a message has already been processed"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT message_id FROM processed_messages WHERE message_id=?", (message_id,))
-        result = cursor.fetchone()
-        
-        conn.close()
-        return result is not None
-    except Exception as e:
-        logger.error(f"Error checking if message is processed: {e}")
-        return False
+    def _request(self, method, path, payload=None, timeout=15):
+        url = f"{self.base_url}{path}"
+        data = None
+        if payload is not None:
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method=method)
+        req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            try:
+                return json.loads(body)
+            except Exception:
+                return {"ok": False, "error": body, "status_code": e.code}
 
-def mark_message_processed(message_id):
-    """Mark a message as processed"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute("INSERT OR IGNORE INTO processed_messages (message_id) VALUES (?)", (message_id,))
-        conn.commit()
-        conn.close()
-        logger.info(f"Marked message {message_id} as processed")
-    except Exception as e:
-        logger.error(f"Error marking message as processed: {e}")
+    def heartbeat(self, status="online", native_status="ok", native_url="", metadata=None):
+        return self._request("POST", "/v1/heartbeat", {
+            "agent": self.agent,
+            "status": status,
+            "native_status": native_status,
+            "native_url": native_url,
+            "metadata": metadata or {},
+        })
 
-def add_message(source, message_id, content):
-    """Add a message to the database"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute("INSERT OR IGNORE INTO messages (source, message_id, content) VALUES (?, ?, ?)", 
-                   (source, message_id, content))
-        conn.commit()
-        conn.close()
-        logger.info(f"Added message {message_id} from {source}")
-    except Exception as e:
-        logger.error(f"Error adding message: {e}")
+    def poll(self, limit=5):
+        result = self._request("GET", f"/v1/poll?agent={self.agent}&limit={limit}")
+        return result.get("messages", []) if result.get("ok") else []
 
-def poll_messages():
-    """Poll for new messages and process them with deduplication"""
-    # This is a simplified implementation - in a real system, this would be replaced with actual message polling code
-    logger.info("Polling for new messages...")
-    # Simulate message processing with deduplication
-    sample_message_id = "msg-001"
-    sample_source = "agent_a"
-    sample_content = "测试消息内容"
-    
-    # Check if message is already processed
-    if not is_message_processed(sample_message_id):
-        # Add message to database
-        add_message(sample_source, sample_message_id, sample_content)
-        # Mark as processed
-        mark_message_processed(sample_message_id)
-        logger.info(f"Processed new message: {sample_message_id}")
-    else:
-        logger.info(f"Skipping duplicate message: {sample_message_id}")
+    def send(self, to_agent, content, metadata=None, priority=5, client_msg_id=None):
+        payload = {
+            "from_agent": self.agent,
+            "to_agent": to_agent,
+            "content": content,
+            "priority": priority,
+            "metadata": metadata or {},
+        }
+        if client_msg_id:
+            payload["client_msg_id"] = client_msg_id
+        return self._request("POST", "/v1/send", payload)
 
-if __name__ == "__main__":
-    # Initialize database
-    init_db()
-    
-    # Poll for messages
-    while True:
-        poll_messages()
-        time.sleep(10)  # Poll every 10 seconds
+    def ack_pending(self, message_id):
+        return self._request("POST", "/v1/ack_pending", {
+            "message_id": message_id,
+            "agent": self.agent,
+        })
+
+    def ack(self, message_id, reply="", processing_mode="ai", error_detail=""):
+        return self._request("POST", "/v1/ack", {
+            "message_id": message_id,
+            "reply": reply,
+            "processing_mode": processing_mode,
+            "error_detail": error_detail,
+        })
+
+    def status(self):
+        """Get full bus status."""
+        return self._request("GET", "/v1/status")

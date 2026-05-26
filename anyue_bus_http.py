@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional, Union
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from anyue_bus_core import (
     ack_message,
@@ -10,7 +10,9 @@ from anyue_bus_core import (
     clear_control_signal,
     create_control_signal,
     get_dashboard,
+    get_events,
     get_health,
+    get_replies,
     get_status,
     init_db,
     list_dead_letters,
@@ -25,11 +27,17 @@ from anyue_bus_core import (
 class AnyueBusHandler(BaseHTTPRequestHandler):
     db_path: Optional[Path] = None
 
+    def _set_cors_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+
     def _write_json(self, status_code: int, payload: dict):
         body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(body)))
+        self._set_cors_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -43,8 +51,15 @@ class AnyueBusHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self._set_cors_headers()
+        self.end_headers()
+
     def do_GET(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
         if path == '/v1/health':
             self._write_json(200, get_health(self.db_path))
             return
@@ -53,6 +68,16 @@ class AnyueBusHandler(BaseHTTPRequestHandler):
             return
         if path == '/v1/dashboard':
             self._write_json(200, get_dashboard(self.db_path))
+            return
+        if path == '/v1/events':
+            after_id = int(query.get('after_id', ['0'])[0] or '0')
+            limit = int(query.get('limit', ['50'])[0] or '50')
+            self._write_json(200, get_events(self.db_path, after_id=after_id, limit=limit))
+            return
+        if path == '/v1/replies':
+            since = int(query.get('since', ['0'])[0] or '0')
+            limit = int(query.get('limit', ['20'])[0] or '20')
+            self._write_json(200, get_replies(self.db_path, since=since, limit=limit))
             return
         if path == '/v1/dead':
             self._write_json(200, list_dead_letters(self.db_path))

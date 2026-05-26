@@ -1,0 +1,10 @@
+# Agent Message Bus — Python dependencies
+# Core bus: zero external dependencies (stdlib only)
+# Web UI (bus_web_ui.py): optional — install only if using web UI
+
+# Required for web UI
+fastapi>=0.100.0
+uvicorn>=0.23.0
+
+# Testing
+pytest>=7.0.0

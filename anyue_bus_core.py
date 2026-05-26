@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional, Union
 import json
+import re
 import sqlite3
 import time
 import uuid
@@ -95,6 +96,23 @@ def _now_ms() -> int:
 
 def _json_dumps(obj) -> str:
     return json.dumps(obj or {}, ensure_ascii=False, separators=(",", ":"))
+
+
+def _extract_agent_from_detail(detail: Optional[str]) -> Optional[str]:
+    if not detail:
+        return None
+    match = re.search(r"(?:polled_by|ack_pending_by|acked_by|fallback_by|failed_by|requeued_by)=([^;]+)", detail)
+    if match:
+        return match.group(1)
+    return None
+
+
+def _format_event_summary(row: sqlite3.Row) -> str:
+    new_status = row["new_status"] or row["event_type"] or "event"
+    detail = row["detail"]
+    if detail:
+        return f"{new_status} · {detail}"
+    return str(new_status)
 
 
 def init_db(db_path: Union[str, Path]) -> Path:
@@ -642,6 +660,79 @@ def get_status(db_path: Union[str, Path]):
         ):
             stuck_messages.append(dict(row))
         return {"ok": True, "message_counts": message_counts, "agents": agents, "active_controls": controls, "stuck_messages": stuck_messages}
+    finally:
+        conn.close()
+
+
+def get_events(db_path: Union[str, Path], *, after_id: int = 0, limit: int = 50):
+    db_path = Path(db_path)
+    init_db(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT rowid AS event_id, message_id, event_type, old_status, new_status, detail, created_at
+            FROM events
+            WHERE rowid > ?
+            ORDER BY rowid ASC
+            LIMIT ?
+            """,
+            (max(after_id, 0), max(limit, 1)),
+        ).fetchall()
+        events = [
+            {
+                "event_id": row["event_id"],
+                "message_id": row["message_id"],
+                "type": row["event_type"],
+                "agent": _extract_agent_from_detail(row["detail"]),
+                "summary": _format_event_summary(row),
+                "ts": row["created_at"],
+                "old_status": row["old_status"],
+                "new_status": row["new_status"],
+                "detail": row["detail"],
+            }
+            for row in rows
+        ]
+        return {"ok": True, "events": events}
+    finally:
+        conn.close()
+
+
+def get_replies(db_path: Union[str, Path], *, since: int = 0, limit: int = 20):
+    db_path = Path(db_path)
+    init_db(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT message_id, from_agent, to_agent, content, reply, status, created_at, acked_at, updated_at
+            FROM messages
+            WHERE status IN ('ACKED', 'FALLBACK_RECEIVED')
+              AND reply IS NOT NULL
+              AND reply != ''
+              AND COALESCE(acked_at, updated_at, created_at) > ?
+            ORDER BY COALESCE(acked_at, updated_at, created_at) ASC
+            LIMIT ?
+            """,
+            (max(since, 0), max(limit, 1)),
+        ).fetchall()
+        replies = [
+            {
+                "message_id": row["message_id"],
+                "from_agent": row["from_agent"],
+                "to_agent": row["to_agent"],
+                "content": row["content"],
+                "reply": row["reply"],
+                "status": row["status"],
+                "created_at": row["created_at"],
+                "acked_at": row["acked_at"],
+                "updated_at": row["updated_at"],
+            }
+            for row in rows
+        ]
+        return {"ok": True, "replies": replies}
     finally:
         conn.close()
 

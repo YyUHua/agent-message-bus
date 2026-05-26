@@ -124,16 +124,19 @@ class DispatchHandler(BaseHTTPRequestHandler):
             dispatched = []
             for agent in agents:
                 try:
-                    result = _json_post(f"{BUS_URL}/send", {
-                        "from": "dispatcher",
-                        "to": agent,
+                    result = _json_post(f"{BUS_URL}/v1/send", {
+                        "from_agent": "user",
+                        "to_agent": agent,
                         "content": content,
                         "type": "task",
                         "priority": 5,
-                        "task_id": task_id,
-                        "visibility": "task",
-                        "parent_task_id": parent_task_id,
-                        "metadata": {"from_user": from_user, "via": "dispatcher"},
+                        "client_msg_id": task_id,
+                        "metadata": {
+                            "from_user": from_user,
+                            "via": "dispatcher",
+                            "parent_task_id": parent_task_id,
+                            "visibility": "task",
+                        },
                     })
                     dispatched.append({"agent": agent, "message_id": result.get("message_id", "?")})
                 except Exception as e:

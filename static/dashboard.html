@@ -15,23 +15,27 @@
     --text-dim: #9ca3af;
     --card: rgba(15,15,15,0.6);
     --accent: #818cf8;
+    --danger: #f87171;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
     background: #0a0a0a;
     color: var(--text);
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
+  button, input, textarea { font: inherit; }
   .container {
     display: flex;
-    height: 100vh;
+    width: 100%;
+    min-height: 100vh;
+    margin: 0 auto;
   }
 
-  /* SIDEBAR */
   .sidebar {
-    width: 200px;
+    width: 220px;
     flex-shrink: 0;
     background: rgba(20,20,20,0.5);
     backdrop-filter: blur(24px);
@@ -41,6 +45,9 @@
     flex-direction: column;
     padding: 20px 12px;
     gap: 8px;
+    position: sticky;
+    top: 0;
+    min-height: 100vh;
   }
   .sidebar h2 {
     font-size: 20px;
@@ -70,26 +77,48 @@
     gap: 8px;
   }
   .sidebar .stat-row .stat-card { flex: 1; }
+  .sidebar .settings-button {
+    margin-top: 4px;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .sidebar .settings-button:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.2);
+  }
 
-  /* MAIN */
   .main {
     flex: 1;
     display: flex;
     flex-direction: column;
     padding: 24px;
     gap: 20px;
-    overflow-y: auto;
+    min-width: 0;
+  }
+  .main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
   .main h1 {
     font-size: 24px;
     font-weight: 600;
     color: #fff;
   }
+  .header-meta {
+    color: var(--text-dim);
+    font-size: 13px;
+  }
 
-  /* AGENT GRID */
   .agent-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 16px;
   }
   .agent-card {
@@ -118,23 +147,45 @@
   .agent-card .status-dot.offline { background: var(--offline); }
   .agent-card .status-dot.active { background: var(--active); box-shadow: 0 0 12px var(--active); animation: pulse 1.5s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-  
+
   .agent-card .header {
     display: flex;
     align-items: center;
     gap: 12px;
     margin-bottom: 16px;
   }
-  .agent-card .avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+  .avatar-shell,
+  .chat-avatar {
+    border-radius: 14px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    font-weight: 700;
-    flex-shrink: 0;
+  }
+  .avatar-shell {
+    width: 48px;
+    height: 48px;
+  }
+  .chat-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+  .avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .avatar-emoji {
+    font-size: 22px;
+    line-height: 1;
+  }
+  .chat-avatar .avatar-emoji {
+    font-size: 17px;
   }
   .agent-card .info h3 {
     font-size: 18px;
@@ -166,46 +217,6 @@
     font-style: italic;
   }
 
-  /* RIGHT PANEL */
-  .right-panel {
-    width: 280px;
-    flex-shrink: 0;
-    background: rgba(20,20,20,0.5);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-left: 1px solid var(--glass-border);
-    padding: 20px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
-  }
-  .right-panel h3 {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .event-item {
-    background: var(--card);
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .event-item .agent-tag {
-    font-weight: 600;
-    color: var(--accent);
-  }
-  .event-item .time {
-    color: var(--text-dim);
-    font-size: 10px;
-  }
-
-  /* CHAT PANEL */
   .chat-panel {
     background: var(--card);
     backdrop-filter: blur(12px);
@@ -214,7 +225,7 @@
     border-radius: 20px;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: clamp(320px, 42vh, 560px);
     flex: 1;
     overflow: hidden;
   }
@@ -224,7 +235,6 @@
     font-size: 16px;
     font-weight: 600;
     color: #fff;
-    flex-shrink: 0;
   }
   .chat-messages {
     flex: 1;
@@ -234,32 +244,51 @@
     flex-direction: column;
     gap: 12px;
   }
-  .chat-message {
-    max-width: 80%;
+  .chat-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    max-width: 88%;
+    animation: fadeIn 0.2s ease;
+  }
+  .chat-row.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+  }
+  .chat-row.agent,
+  .chat-row.system {
+    align-self: flex-start;
+  }
+  .chat-bubble {
     padding: 12px 16px;
     border-radius: 16px;
     font-size: 14px;
     line-height: 1.5;
-    animation: fadeIn 0.2s ease;
+    min-width: 0;
   }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-  .chat-message.user {
-    align-self: flex-end;
+  .chat-row.user .chat-bubble {
     background: rgba(129,140,248,0.15);
     border: 1px solid rgba(129,140,248,0.25);
     color: #e5e7eb;
   }
-  .chat-message.agent {
-    align-self: flex-start;
+  .chat-row.agent .chat-bubble {
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--glass-border);
     color: #d1d5db;
   }
-  .chat-message .sender {
+  .chat-row.system .chat-bubble {
+    background: rgba(251,191,36,0.08);
+    border: 1px solid rgba(251,191,36,0.2);
+    color: #f3f4f6;
+  }
+  .chat-body {
+    min-width: 0;
+  }
+  .chat-row .sender {
     font-size: 11px;
     font-weight: 600;
     margin-bottom: 4px;
-    opacity: 0.7;
+    opacity: 0.72;
   }
   .chat-input {
     display: flex;
@@ -294,14 +323,440 @@
   }
   .chat-input button:hover { opacity: 0.85; }
   .chat-input button:disabled { opacity: 0.4; cursor: default; }
+
+  .right-panel {
+    width: 280px;
+    flex-shrink: 0;
+    background: rgba(20,20,20,0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-left: 1px solid var(--glass-border);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+  }
+  .right-panel h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .event-item {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .event-item .agent-tag {
+    font-weight: 600;
+    color: var(--accent);
+  }
   .event-item .summary {
     color: var(--text);
+  }
+  .event-item .time {
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  .settings-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.48);
+    display: none;
+    align-items: stretch;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+    z-index: 20;
+  }
+  .settings-modal.open {
+    display: flex;
+  }
+  .settings-dialog {
+    width: min(920px, 100%);
+    height: min(88vh, calc(100vh - 48px));
+    margin: auto;
+    overflow: hidden;
+    background: rgba(12,12,12,0.95);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.35);
+    display: flex;
+    flex-direction: column;
+  }
+  .settings-header,
+  .settings-footer {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .settings-footer {
+    border-top: 1px solid var(--glass-border);
+    border-bottom: none;
+  }
+  .settings-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .settings-subtitle {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .settings-body {
+    padding: 20px 22px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .ghost-button,
+  .danger-button,
+  .primary-button {
+    border-radius: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .ghost-button {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--glass-border);
+    color: #fff;
+  }
+  .primary-button {
+    background: var(--accent);
+    color: #fff;
+  }
+  .danger-button {
+    background: rgba(248,113,113,0.1);
+    border-color: rgba(248,113,113,0.2);
+    color: #fecaca;
+  }
+  .agent-form-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .agent-form-card {
+    border: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.03);
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .agent-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .agent-form-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .agent-form-title strong {
+    display: block;
+    color: #fff;
+  }
+  .agent-form-title span {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .agent-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field label {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .field input,
+  .field select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: #fff;
+    padding: 10px 12px;
+  }
+  .field input[type="color"] {
+    height: 42px;
+    padding: 4px;
+  }
+  .avatar-mode-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .avatar-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .upload-meta {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  @media (min-width: 1441px) {
+    .container {
+      width: min(1720px, calc(100% - 40px));
+    }
+    .sidebar {
+      width: 240px;
+      padding: 28px 16px;
+    }
+    .main {
+      padding: 32px;
+      gap: 24px;
+    }
+    .right-panel {
+      width: 320px;
+      padding: 24px 20px;
+    }
+    .agent-grid {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .chat-panel {
+      min-height: clamp(360px, 48vh, 680px);
+    }
+  }
+
+  @media (max-width: 1439px) {
+    .sidebar {
+      width: 208px;
+    }
+    .right-panel {
+      width: 260px;
+    }
+  }
+
+  @media (max-width: 1280px) {
+    .sidebar {
+      width: 188px;
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+    .main {
+      padding: 18px;
+    }
+    .right-panel {
+      width: 232px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    .agent-grid {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+  }
+
+  @media (max-width: 1180px) {
+    body {
+      overflow-y: auto;
+    }
+    .container {
+      flex-direction: column;
+      width: 100%;
+      min-height: 100vh;
+    }
+    .sidebar,
+    .right-panel {
+      width: auto;
+      min-height: 0;
+      max-height: none;
+      position: static;
+      border: none;
+      padding: 18px 16px;
+    }
+    .sidebar {
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .right-panel {
+      border-top: 1px solid var(--glass-border);
+    }
+    .main {
+      padding: 20px 16px;
+      gap: 16px;
+    }
+    .main-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .agent-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .chat-panel {
+      min-height: 420px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .sidebar,
+    .right-panel,
+    .main {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    .sidebar h2,
+    .main h1 {
+      font-size: 20px;
+    }
+    .sidebar .stat-row {
+      flex-direction: column;
+    }
+    .sidebar .stat-card .value {
+      font-size: 24px;
+    }
+    .agent-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .agent-card {
+      padding: 18px;
+      border-radius: 18px;
+    }
+    .agent-card .header {
+      align-items: flex-start;
+    }
+    .avatar-shell {
+      width: 42px;
+      height: 42px;
+    }
+    .main-header {
+      gap: 6px;
+    }
+    .chat-panel {
+      min-height: 360px;
+      border-radius: 18px;
+    }
+    .chat-header,
+    .chat-messages,
+    .chat-input {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    .chat-row {
+      max-width: 100%;
+    }
+    .chat-input {
+      flex-wrap: wrap;
+    }
+    .chat-input input {
+      min-width: 0;
+      width: 100%;
+    }
+    .chat-input button {
+      width: 100%;
+    }
+    .settings-modal {
+      padding: 10px;
+    }
+    .settings-dialog {
+      width: 100%;
+      height: min(94vh, calc(100vh - 20px));
+      border-radius: 18px;
+    }
+    .settings-body,
+    .settings-header,
+    .settings-footer {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    .agent-form-header,
+    .agent-form-title {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .agent-form-grid {
+      grid-template-columns: 1fr;
+    }
+    .danger-button,
+    .ghost-button,
+    .primary-button {
+      width: 100%;
+    }
+    .settings-actions {
+      flex-direction: column;
+    }
+  }
+
+  @media (max-height: 760px) {
+    .sidebar,
+    .right-panel {
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+    .main {
+      padding-top: 16px;
+      padding-bottom: 16px;
+      gap: 14px;
+    }
+    .agent-card {
+      padding: 18px;
+    }
+    .chat-panel {
+      min-height: 300px;
+    }
+    .settings-modal {
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+    .settings-dialog {
+      height: min(94vh, calc(100vh - 24px));
+    }
+  }
+
+  @media (max-width: 767px) and (max-height: 480px) {
+    .chat-panel {
+      min-height: 260px;
+    }
+    .chat-header {
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+    .chat-input {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+    .settings-dialog {
+      height: min(96vh, calc(100vh - 12px));
+    }
   }
 </style>
 </head>
 <body>
 <div class="container">
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <h2>🏢 办公室</h2>
     <div class="stat-row">
@@ -328,18 +783,19 @@
         <div class="value" id="stat-failed">-</div>
       </div>
     </div>
+    <button class="settings-button" id="open-settings" type="button">面板设置</button>
     <div style="margin-top:auto; font-size:11px; color:var(--text-dim); text-align:center; padding:8px;">
       轮询中 · 1s
     </div>
   </div>
 
-  <!-- MAIN -->
   <div class="main">
-    <h1>Agent 工作台</h1>
-    <div class="agent-grid" id="agent-grid">
+    <div class="main-header">
+      <h1>Agent 工作台</h1>
+      <div class="header-meta" id="roster-summary">成员 0 人</div>
     </div>
+    <div class="agent-grid" id="agent-grid"></div>
 
-    <!-- CHAT PANEL -->
     <div class="chat-panel">
       <div class="chat-header">💬 群聊面板</div>
       <div class="chat-messages" id="chat-messages">
@@ -352,7 +808,6 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
   <div class="right-panel">
     <h3>📋 消息统计</h3>
     <div class="event-item">
@@ -378,37 +833,278 @@
   </div>
 </div>
 
-<script>
-const BUS = 'http://localhost:8648';
-const DISPATCHER = 'http://localhost:8655';
-let lastEventId = 0;
+<div class="settings-modal" id="settings-modal">
+  <div class="settings-dialog">
+    <div class="settings-header">
+      <div>
+        <div class="settings-title">面板设置</div>
+        <div class="settings-subtitle">支持改成员数量、显示名、总线 ID、颜色与头像照片。</div>
+      </div>
+      <button class="ghost-button" id="close-settings" type="button">关闭</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-actions">
+        <button class="ghost-button" id="add-agent" type="button">新增成员</button>
+        <button class="ghost-button" id="reset-roster" type="button">恢复默认</button>
+      </div>
+      <div class="agent-form-list" id="agent-form-list"></div>
+    </div>
+    <div class="settings-footer">
+      <div class="settings-subtitle">照片头像仅保存在当前浏览器。</div>
+      <button class="primary-button" id="save-settings" type="button">保存设置</button>
+    </div>
+  </div>
+</div>
 
-const AGENTS = [
-  { id: 'agent_a', busId: 'agent_a', name: 'Agent A', role: 'Hermes · 终端/文件/浏览器', avatar: '🌙', color: '#818cf8' },
-  { id: 'agent_e', busId: 'agent_b', name: 'Agent E', role: 'OpenClaw · 大管家/路由', avatar: '🌿', color: '#34d399' },
-  { id: 'agent_c', busId: 'agent_c', name: 'Agent C', role: 'Claude Opus · 创作/聊天', avatar: '🌸', color: '#f472b6' },
-  { id: 'agent_d', busId: 'agent_d', name: 'Agent D', role: 'DeepSeek · 数据处理', avatar: '💜', color: '#a78bfa' },
+<script>
+const BUS = 'http://127.0.0.1:8648';
+const DISPATCHER = 'http://127.0.0.1:8655';
+const ROSTER_STORAGE_KEY = 'agent-dashboard-roster-v1';
+const DEFAULT_AGENT_COLOR = '#818cf8';
+const DEFAULT_AVATAR = '🤖';
+const DEFAULT_ROSTER = [
+  { id: 'agent_a', busId: 'agent_a', name: 'Agent A', role: 'Hermes · 终端/文件/浏览器', color: '#818cf8', avatarType: 'emoji', avatarValue: '🌙' },
+  { id: 'agent_b', busId: 'agent_b', name: 'Agent B', role: 'OpenClaw · 大管家/路由', color: '#34d399', avatarType: 'emoji', avatarValue: '🌿' },
+  { id: 'agent_c', busId: 'agent_c', name: 'Agent C', role: 'Claude Opus · 创作/聊天', color: '#f472b6', avatarType: 'emoji', avatarValue: '🌸' },
+  { id: 'agent_d', busId: 'agent_d', name: 'Agent D', role: 'DeepSeek · 数据处理', color: '#a78bfa', avatarType: 'emoji', avatarValue: '💜' },
 ];
+
+let lastEventId = 0;
+let lastReplyTs = Date.now() - 60000;
+let roster = [];
+let draftRoster = [];
+const renderedReplies = new Set();
+
+function uid(prefix = 'agent') {
+  return `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function cloneRoster(items) {
+  return (items || []).map(item => ({ ...item }));
+}
+
+function normalizeAgent(agent, index = 0) {
+  const avatarType = agent.avatarType === 'image' && typeof agent.avatarValue === 'string' && agent.avatarValue.startsWith('data:')
+    ? 'image'
+    : 'emoji';
+  const avatarValue = avatarType === 'image'
+    ? agent.avatarValue
+    : (agent.avatarType === 'emoji' ? agent.avatarValue : DEFAULT_AVATAR) || DEFAULT_AVATAR;
+  return {
+    id: agent.id || uid('agent'),
+    busId: (agent.busId || `agent_${index + 1}`).trim(),
+    name: (agent.name || `Agent ${index + 1}`).trim(),
+    role: (agent.role || '未设置角色').trim(),
+    color: agent.color || DEFAULT_AGENT_COLOR,
+    avatarType,
+    avatarValue,
+  };
+}
+
+function loadRosterConfig() {
+  try {
+    const raw = localStorage.getItem(ROSTER_STORAGE_KEY);
+    if (!raw) return cloneRoster(DEFAULT_ROSTER);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.length) return cloneRoster(DEFAULT_ROSTER);
+    return parsed.map((item, index) => normalizeAgent(item, index));
+  } catch (e) {
+    console.warn('Failed to load roster config:', e.message);
+    return cloneRoster(DEFAULT_ROSTER);
+  }
+}
+
+function saveRosterConfig(items) {
+  localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify(items));
+}
+
+function getRoster() {
+  return roster;
+}
+
+function getAgentProfile(busId) {
+  return getRoster().find(agent => agent.busId === busId) || null;
+}
+
+function createDefaultAgent() {
+  const index = draftRoster.length + 1;
+  return normalizeAgent({
+    id: uid('agent'),
+    busId: `agent_${index}`,
+    name: `Agent ${index}`,
+    role: '自定义成员',
+    color: DEFAULT_AGENT_COLOR,
+    avatarType: 'emoji',
+    avatarValue: DEFAULT_AVATAR,
+  }, index);
+}
+
+function esc(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderAvatar(profile, className = 'avatar-shell') {
+  const color = profile?.color || DEFAULT_AGENT_COLOR;
+  if (profile?.avatarType === 'image' && profile?.avatarValue) {
+    return `<div class="${className}" style="background:${color}22;"><img class="avatar-image" src="${profile.avatarValue}" alt="${esc(profile.name || 'avatar')}"></div>`;
+  }
+  const emoji = esc(profile?.avatarValue || DEFAULT_AVATAR);
+  return `<div class="${className}" style="background:${color}22; color:${color};"><span class="avatar-emoji">${emoji}</span></div>`;
+}
 
 function createAgentCards() {
   const grid = document.getElementById('agent-grid');
-  AGENTS.forEach(a => {
+  const agents = getRoster();
+  grid.innerHTML = '';
+  agents.forEach(agent => {
     const card = document.createElement('div');
     card.className = 'agent-card';
-    card.id = `agent-${a.id}`;
+    card.id = `agent-${agent.id}`;
     card.innerHTML = `
       <div class="header">
-        <div class="avatar" style="background:${a.color}22; color:${a.color}">${a.avatar}</div>
+        ${renderAvatar(agent, 'avatar-shell')}
         <div class="info">
-          <h3><span class="status-dot offline" id="dot-${a.id}"></span>${a.name}</h3>
-          <div class="role">${a.role}</div>
-          <div class="last-seen" id="seen-${a.id}">-</div>
+          <h3><span class="status-dot offline" id="dot-${agent.id}"></span>${esc(agent.name)}</h3>
+          <div class="role">${esc(agent.role)}</div>
+          <div class="last-seen" id="seen-${agent.id}">-</div>
         </div>
       </div>
-      <div class="task" id="task-${a.id}"><span class="none">空闲中</span></div>
+      <div class="task" id="task-${agent.id}"><span class="none">空闲中</span></div>
     `;
     grid.appendChild(card);
   });
+  document.getElementById('roster-summary').textContent = `成员 ${agents.length} 人`;
+}
+
+function renderSettingsList() {
+  const list = document.getElementById('agent-form-list');
+  list.innerHTML = '';
+  draftRoster.forEach((agent, index) => {
+    const item = document.createElement('div');
+    item.className = 'agent-form-card';
+    item.dataset.agentId = agent.id;
+    const imageModeChecked = agent.avatarType === 'image' ? 'checked' : '';
+    const emojiModeChecked = agent.avatarType !== 'image' ? 'checked' : '';
+    const uploadMeta = agent.avatarType === 'image' && agent.avatarValue ? '已选择照片头像' : '未上传照片';
+    item.innerHTML = `
+      <div class="agent-form-header">
+        <div class="agent-form-title">
+          ${renderAvatar(agent, 'avatar-shell')}
+          <div>
+            <strong>${esc(agent.name || `Agent ${index + 1}`)}</strong>
+            <span>${esc(agent.busId || '未设置总线 ID')}</span>
+          </div>
+        </div>
+        <button class="danger-button remove-agent" type="button" data-agent-id="${agent.id}" ${draftRoster.length <= 1 ? 'disabled' : ''}>删除</button>
+      </div>
+      <div class="agent-form-grid">
+        <div class="field">
+          <label>显示名</label>
+          <input type="text" value="${esc(agent.name)}" data-field="name" data-agent-id="${agent.id}">
+        </div>
+        <div class="field">
+          <label>总线 ID</label>
+          <input type="text" value="${esc(agent.busId)}" data-field="busId" data-agent-id="${agent.id}">
+        </div>
+        <div class="field">
+          <label>角色</label>
+          <input type="text" value="${esc(agent.role)}" data-field="role" data-agent-id="${agent.id}">
+        </div>
+        <div class="field">
+          <label>主题色</label>
+          <input type="color" value="${esc(agent.color)}" data-field="color" data-agent-id="${agent.id}">
+        </div>
+      </div>
+      <div class="field">
+        <label>头像模式</label>
+        <div class="avatar-mode-row">
+          <label class="avatar-option"><input type="radio" name="avatar-mode-${agent.id}" value="emoji" data-field="avatarType" data-agent-id="${agent.id}" ${emojiModeChecked}> Emoji</label>
+          <label class="avatar-option"><input type="radio" name="avatar-mode-${agent.id}" value="image" data-field="avatarType" data-agent-id="${agent.id}" ${imageModeChecked}> 上传照片</label>
+        </div>
+      </div>
+      <div class="agent-form-grid">
+        <div class="field" data-emoji-field="${agent.id}" style="display:${agent.avatarType === 'image' ? 'none' : 'flex'};">
+          <label>Emoji 头像</label>
+          <input type="text" maxlength="2" value="${esc(agent.avatarType === 'image' ? DEFAULT_AVATAR : agent.avatarValue)}" data-field="avatarValue" data-agent-id="${agent.id}">
+        </div>
+        <div class="field" data-upload-field="${agent.id}" style="display:${agent.avatarType === 'image' ? 'flex' : 'none'};">
+          <label>上传照片</label>
+          <input type="file" accept="image/*" data-upload="avatar" data-agent-id="${agent.id}">
+          <div class="upload-meta">${uploadMeta}</div>
+        </div>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function openSettings() {
+  draftRoster = cloneRoster(getRoster());
+  renderSettingsList();
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+
+function updateDraftAgent(agentId, field, value) {
+  draftRoster = draftRoster.map(agent => {
+    if (agent.id !== agentId) return agent;
+    const next = { ...agent, [field]: value };
+    if (field === 'avatarType' && value !== 'image' && (!next.avatarValue || next.avatarValue.startsWith('data:'))) {
+      next.avatarValue = DEFAULT_AVATAR;
+    }
+    return next;
+  });
+  renderSettingsList();
+}
+
+function handleSettingsChange(event) {
+  const target = event.target;
+  const agentId = target.dataset.agentId;
+  const field = target.dataset.field;
+  if (!agentId || !field) return;
+  updateDraftAgent(agentId, field, target.value);
+}
+
+function removeDraftAgent(agentId) {
+  if (draftRoster.length <= 1) return;
+  draftRoster = draftRoster.filter(agent => agent.id !== agentId);
+  renderSettingsList();
+}
+
+function handleAvatarUpload(event) {
+  const file = event.target.files?.[0];
+  const agentId = event.target.dataset.agentId;
+  if (!file || !agentId) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    updateDraftAgent(agentId, 'avatarType', 'image');
+    draftRoster = draftRoster.map(agent => agent.id === agentId ? { ...agent, avatarType: 'image', avatarValue: reader.result } : agent);
+    renderSettingsList();
+  };
+  reader.readAsDataURL(file);
+}
+
+function commitSettings() {
+  roster = draftRoster.map((agent, index) => normalizeAgent(agent, index)).filter(agent => agent.busId);
+  if (!roster.length) {
+    roster = cloneRoster(DEFAULT_ROSTER);
+  }
+  saveRosterConfig(roster);
+  createAgentCards();
+  closeSettings();
+}
+
+function resetRoster() {
+  draftRoster = cloneRoster(DEFAULT_ROSTER);
+  renderSettingsList();
 }
 
 function timeAgo(ts) {
@@ -429,40 +1125,78 @@ function formatNum(n) {
   return n.toLocaleString();
 }
 
+function addChatBubble(kind, text, profile = null) {
+  const container = document.getElementById('chat-messages');
+  const row = document.createElement('div');
+  row.className = `chat-row ${kind}`;
+  const senderLabel = kind === 'user'
+    ? '我'
+    : profile?.name || (kind === 'system' ? 'system' : 'Agent');
+  const avatarHtml = kind === 'user'
+    ? ''
+    : renderAvatar(profile || { color: '#64748b', avatarType: 'emoji', avatarValue: kind === 'system' ? '📣' : DEFAULT_AVATAR, name: senderLabel }, 'chat-avatar');
+  row.innerHTML = `
+    ${avatarHtml}
+    <div class="chat-body">
+      <div class="sender">${esc(senderLabel)}</div>
+      <div class="chat-bubble">${esc(text)}</div>
+    </div>
+  `;
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+}
+
+function renderEvents(events) {
+  const container = document.getElementById('event-stream');
+  if (!events || !events.length) {
+    container.innerHTML = '<div class="event-item" style="color:var(--text-dim);">暂无事件</div>';
+    return;
+  }
+  const recent = events.slice(-8).reverse();
+  container.innerHTML = recent.map(e => {
+    const profile = getAgentProfile(e.agent);
+    const label = profile?.name || e.agent || 'system';
+    return `
+      <div class="event-item">
+        <span class="agent-tag">${esc(label)}</span>
+        <span class="summary">${esc(e.summary || e.type || '-')}</span>
+        <span class="time">${new Date(e.ts).toLocaleTimeString()}</span>
+      </div>
+    `;
+  }).join('');
+}
+
 async function poll() {
   try {
-    const res = await fetch(`${BUS}/status`);
+    const res = await fetch(`${BUS}/v1/status`);
     const data = await res.json();
     if (!data.ok) return;
 
-    // Update sidebar stats
-    document.getElementById('stat-queued').textContent = formatNum(data.messages?.QUEUED);
-    document.getElementById('stat-acked').textContent = formatNum(data.messages?.ACKED);
-    document.getElementById('stat-failed').textContent = formatNum(data.messages?.FAILED);
+    const messageCounts = data.message_counts || {};
+    document.getElementById('stat-queued').textContent = formatNum(messageCounts.QUEUED);
+    document.getElementById('stat-acked').textContent = formatNum(messageCounts.ACKED);
+    document.getElementById('stat-failed').textContent = formatNum(messageCounts.FAILED);
+    document.getElementById('msg-queued').textContent = `待投递: ${formatNum(messageCounts.QUEUED)}`;
+    document.getElementById('msg-pending').textContent = `等待确认: ${formatNum(messageCounts.ACK_PENDING)}`;
+    document.getElementById('msg-acked').textContent = `已完成: ${formatNum(messageCounts.ACKED)}`;
+    document.getElementById('msg-failed').textContent = `失败: ${formatNum(messageCounts.FAILED)}`;
 
-    // Update right panel message stats
-    document.getElementById('msg-queued').textContent = `待投递: ${formatNum(data.messages?.QUEUED)}`;
-    document.getElementById('msg-pending').textContent = `等待确认: ${formatNum(data.messages?.ACK_PENDING)}`;
-    document.getElementById('msg-acked').textContent = `已完成: ${formatNum(data.messages?.ACKED)}`;
-    document.getElementById('msg-failed').textContent = `失败: ${formatNum(data.messages?.FAILED)}`;
-
-    // Count online agents (heartbeat within 2 minutes = alive)
     const agents = data.agents || [];
     const now = Date.now();
     const alive = agents.filter(a => {
       const alive = (a.status === 'online' || a.status === 'ok') && (now - a.last_heartbeat < 120_000);
       return alive;
     });
-    const onlineCount = agents.filter(a => a.status === 'online' || a.status === 'ok').length;
-    const totalRegistered = agents.length || AGENTS.length;
+    const totalRegistered = agents.length || getRoster().length;
     document.getElementById('stat-online').textContent = `${alive.length}/${totalRegistered}`;
 
-    // Update each agent card
-    AGENTS.forEach(a => {
-      const agentData = agents.find(ag => ag.agent_id === a.busId);
-      const dot = document.getElementById(`dot-${a.id}`);
-      const seen = document.getElementById(`seen-${a.id}`);
-      
+    getRoster().forEach(agent => {
+      const agentData = agents.find(ag => ag.agent_id === agent.busId);
+      const dot = document.getElementById(`dot-${agent.id}`);
+      const seen = document.getElementById(`seen-${agent.id}`);
+      const task = document.getElementById(`task-${agent.id}`);
+      if (!dot || !seen || !task) return;
+
       const aliveStatuses = ['online', 'ok', 'thinking', 'running', 'active'];
       if (agentData && aliveStatuses.includes(agentData.status) && (now - agentData.last_heartbeat < 120_000)) {
         dot.className = 'status-dot online';
@@ -471,11 +1205,11 @@ async function poll() {
         dot.className = 'status-dot offline';
         seen.textContent = agentData ? `离线 ${timeAgo(agentData.last_heartbeat)}` : '未注册';
       }
+      task.innerHTML = '<span class="none">空闲中</span>';
     });
 
-    // Poll events with cursor-based incremental fetch
     try {
-      const evRes = await fetch(`${BUS}/events?after_id=${lastEventId}`);
+      const evRes = await fetch(`${BUS}/v1/events?after_id=${lastEventId}`);
       if (evRes.ok) {
         const evData = await evRes.json();
         const events = evData.events || [];
@@ -486,10 +1220,28 @@ async function poll() {
         }
       }
     } catch(e) {
-      // /events not ready yet - that's OK
+      console.warn('Event poll failed:', e.message);
     }
 
-    // Poll dispatcher health
+    try {
+      const replyRes = await fetch(`${BUS}/v1/replies?since=${lastReplyTs}&limit=20`);
+      if (replyRes.ok) {
+        const replyData = await replyRes.json();
+        const replies = replyData.replies || [];
+        replies.forEach(r => {
+          const replyTs = r.acked_at || r.updated_at || r.created_at || 0;
+          const key = `reply-${r.message_id}`;
+          if (!renderedReplies.has(key)) {
+            renderedReplies.add(key);
+            addChatBubble('agent', r.reply, getAgentProfile(r.to_agent) || normalizeAgent({ busId: r.to_agent, name: r.to_agent, role: 'Agent', color: DEFAULT_AGENT_COLOR, avatarType: 'emoji', avatarValue: DEFAULT_AVATAR }));
+          }
+          if (replyTs > lastReplyTs) lastReplyTs = replyTs;
+        });
+      }
+    } catch(e) {
+      console.warn('Reply poll failed:', e.message);
+    }
+
     try {
       const dRes = await fetch(`${DISPATCHER}/health`);
       if (dRes.ok) {
@@ -502,48 +1254,9 @@ async function poll() {
         }
       }
     } catch(e) {}
-
   } catch(e) {
     console.warn('Bus poll failed:', e.message);
   }
-}
-
-function renderEvents(events) {
-  const container = document.getElementById('event-stream');
-  if (!events || !events.length) {
-    container.innerHTML = '<div class="event-item" style="color:var(--text-dim);">暂无事件</div>';
-    return;
-  }
-  const recent = events.slice(-8).reverse();
-  container.innerHTML = recent.map(e => `
-    <div class="event-item">
-      <span class="agent-tag">${e.agent || 'system'}</span>
-      <span class="summary">${e.summary || e.type || '-'}</span>
-      <span class="time">${new Date(e.ts).toLocaleTimeString()}</span>
-    </div>
-  `).join('');
-
-  // Also push agent events to chat
-  events.forEach(e => {
-    if (e.summary && e.agent && e.summary !== '测试总线端点' && e.summary !== '面板对齐验证') {
-      const msgKey = `${e.agent}-${e.ts}-${e.type}`;
-      if (!renderedChatEvents.has(msgKey)) {
-        renderedChatEvents.add(msgKey);
-        addChatBubble(e.agent, e.summary);
-      }
-    }
-  });
-}
-
-const renderedChatEvents = new Set();
-
-function addChatBubble(sender, text) {
-  const container = document.getElementById('chat-messages');
-  const div = document.createElement('div');
-  div.className = 'chat-message agent';
-  div.innerHTML = `<div class="sender">${sender}</div><div>${text}</div>`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
 }
 
 async function sendMessage() {
@@ -554,14 +1267,7 @@ async function sendMessage() {
   const btn = input.nextElementSibling;
   btn.disabled = true;
   input.disabled = true;
-
-  // Show user message
-  const container = document.getElementById('chat-messages');
-  const userDiv = document.createElement('div');
-  userDiv.className = 'chat-message user';
-  userDiv.innerHTML = `<div class="sender">我</div><div>${text}</div>`;
-  container.appendChild(userDiv);
-  container.scrollTop = container.scrollHeight;
+  addChatBubble('user', text);
   input.value = '';
 
   try {
@@ -572,7 +1278,10 @@ async function sendMessage() {
     });
     const data = await res.json();
     if (data.dispatched) {
-      const agents = data.agents.map(a => a.agent).join(', ');
+      const agents = data.agents.map(a => {
+        const profile = getAgentProfile(a.agent);
+        return profile?.name || a.agent;
+      }).join(', ');
       addChatBubble('system', `已派发至: ${agents}`);
     } else {
       addChatBubble('system', data.hint || '派发失败');
@@ -586,7 +1295,36 @@ async function sendMessage() {
   input.focus();
 }
 
+function setupSettingsEvents() {
+  document.getElementById('open-settings').addEventListener('click', openSettings);
+  document.getElementById('close-settings').addEventListener('click', closeSettings);
+  document.getElementById('save-settings').addEventListener('click', commitSettings);
+  document.getElementById('add-agent').addEventListener('click', () => {
+    draftRoster.push(createDefaultAgent());
+    renderSettingsList();
+  });
+  document.getElementById('reset-roster').addEventListener('click', resetRoster);
+  document.getElementById('settings-modal').addEventListener('click', event => {
+    if (event.target.id === 'settings-modal') closeSettings();
+  });
+  document.getElementById('agent-form-list').addEventListener('input', handleSettingsChange);
+  document.getElementById('agent-form-list').addEventListener('change', event => {
+    if (event.target.dataset.upload === 'avatar') {
+      handleAvatarUpload(event);
+      return;
+    }
+    handleSettingsChange(event);
+  });
+  document.getElementById('agent-form-list').addEventListener('click', event => {
+    const button = event.target.closest('.remove-agent');
+    if (!button) return;
+    removeDraftAgent(button.dataset.agentId);
+  });
+}
+
+roster = loadRosterConfig();
 createAgentCards();
+setupSettingsEvents();
 poll();
 setInterval(poll, 1000);
 </script>

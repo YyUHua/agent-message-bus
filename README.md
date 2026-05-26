@@ -105,6 +105,22 @@ Set `BUS_DB_PATH` environment variable to override the default database location
 | `message_deduplicator.py` | Idempotency key support |
 | `init_schema.sql` | Database schema |
 
+## Testing
+
+```bash
+# Install test dependencies
+pip install pytest
+
+# Run all tests
+python -m pytest tests/ -v
+```
+
+**Note**: adapter and worker tests are integration tests that require a running bus instance. The core bus, schema, send, and polling tests are pure unit tests that run without a server. To run only unit tests:
+
+```bash
+python -m pytest tests/ -v -k "not test_adapters and not test_worker"
+```
+
 ## License
 
 MIT
