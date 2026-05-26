@@ -84,7 +84,7 @@ def test_worker_calls_native_model_acks_and_sends_reply_to_peer(tmp_path):
     db_path = tmp_path / 'anyue_bus.db'
     init_db(db_path)
 
-    with BusServer(db_path) as bus, FakeNativeServer('AI hello from Nadia') as native:
+    with BusServer(db_path) as bus, FakeNativeServer('AI hello from agent_b') as native:
         agent_a = AnyueBusAdapter('agent_a', bus.base_url)
         sent = agent_a.send('agent_b', 'please think and reply', client_msg_id='worker-native-1')
 
@@ -94,7 +94,7 @@ def test_worker_calls_native_model_acks_and_sends_reply_to_peer(tmp_path):
         assert status['message_counts']['ACKED'] == 1
         replies = agent_a.poll(limit=1)
         assert replies[0]['from'] == 'agent_b'
-        assert replies[0]['content'] == 'AI hello from Nadia'
+        assert replies[0]['content'] == 'AI hello from agent_b'
         assert replies[0]['metadata']['auto_reply'] is True
         assert replies[0]['metadata']['in_reply_to'] == sent['message_id']
         assert native.requests
