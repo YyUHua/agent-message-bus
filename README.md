@@ -28,6 +28,16 @@ A lightweight message bus for multi-agent systems. SQLite-backed, HTTP-native. A
     python3 -m http.server 8080
     浏览器打开 http://localhost:8080/static/dashboard.html
 
+想看像素办公室面板（可选）：
+
+    cd pixel-office
+    npm install
+    npm run dev
+    # 浏览器打开 http://localhost:3456
+    # 或者在主面板点 🎮 办公室 按钮内嵌查看
+
+    PS：生产部署用 `npm run build`，启动 `node dist/server.js`
+
 API 端点
 
 总线在 8648 端口：
@@ -68,6 +78,16 @@ bus_web_ui.py — FastAPI 写的群聊界面
 message_deduplicator.py — 幂等去重
 static/dashboard.html — 运维面板，实时看 Agent 状态和事件流
 webchat/server.py — Web 聊天服务
+pixel-office/ — 像素办公室可视化面板（可选组件）
+
+## 像素办公室 / Pixel Office
+
+办公室面板素材原型出自 [rolandal/pixel-agents-standalone](https://github.com/rolandal/pixel-agents-standalone)（MIT License），在此之上做了汉化、总线集成和行动轨迹可视化改造。
+
+- 四个 Agent 以像素角色在办公室走动
+- 人物头上实时显示当前活动状态（思考中 / 执行中 / 空闲）
+- 支持缩放、拖拽、布局编辑
+- 通过 BusPoller 轮询总线 `/v1/status` 驱动状态变化
 
 测试 / Testing
 
